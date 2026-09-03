@@ -5,13 +5,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import cast
 
 from deep_research_rl import __version__
 from deep_research_rl.agent.qwen import (
     DEFAULT_QWEN_MODEL,
     DEFAULT_QWEN_REVISION,
+    NoSearchQwenPolicyAdapter,
     QwenDependencyError,
     QwenGenerationSettings,
     QwenInferenceError,
@@ -37,6 +40,35 @@ from deep_research_rl.data.source import (
     download_source_files,
     load_source_config,
 )
+from deep_research_rl.evaluation.artifacts import (
+    build_resolved_config,
+    capture_code_state,
+    write_evaluation_artifacts,
+)
+from deep_research_rl.evaluation.contracts import EvaluationResultScope
+from deep_research_rl.evaluation.metrics import EvaluationIntegrityError, aggregate_evaluation
+from deep_research_rl.evaluation.reporting import (
+    load_aggregate_json,
+    write_aggregate_csv,
+    write_comparison_csv,
+)
+from deep_research_rl.evaluation.runner import (
+    BASELINE_EVALUATION_SEED,
+    BASELINE_MAX_NEW_TOKENS,
+    BASELINE_MAX_PROMPT_TOKENS,
+    BASELINE_RETRIEVAL_TOP_K,
+    FULL_CORPUS_SHA256,
+    FULL_VALIDATION_EXAMPLES,
+    FULL_VALIDATION_EXAMPLES_SHA256,
+    run_no_search_evaluation,
+    run_prompted_agent_evaluation,
+    run_rl_agent_evaluation,
+)
+from deep_research_rl.evaluation.serialization import (
+    EvaluationFormatError,
+    read_evaluation_jsonl,
+    write_json_artifact,
+)
 from deep_research_rl.retrieval import load_retriever, verify_index
 from deep_research_rl.retrieval.bm25 import build_bm25_index
 from deep_research_rl.retrieval.corpus import load_corpus
@@ -56,7 +88,46 @@ from deep_research_rl.retrieval.index import (
     INDEX_MANIFEST_FILENAME,
     load_manifest,
     manifest_backend,
+    sha256_file,
 )
+
+
+def _add_evaluation_run_arguments(
+    parser: argparse.ArgumentParser,
+    *,
+    retrieval_enabled: bool,
+    trained_policy: bool,
+) -> None:
+    parser.add_argument("--run-id", required=True)
+    parser.add_argument("--examples", type=Path, required=True)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--max-examples",
+        type=int,
+        help="ordered-prefix size for debug runs (defaults to 1)",
+    )
+    parser.add_argument(
+        "--final-validation",
+        action="store_true",
+        help="require the complete pinned validation split and production retrieval",
+    )
+    if retrieval_enabled:
+        parser.add_argument("--corpus", type=Path, required=True)
+        parser.add_argument("--index-dir", type=Path, required=True)
+        parser.add_argument("--retrieval-device", default="cpu")
+    if trained_policy:
+        parser.add_argument("--model-name", required=True)
+        parser.add_argument("--model-revision", required=True)
+    else:
+        parser.add_argument("--model-name", default=DEFAULT_QWEN_MODEL)
+        parser.add_argument("--model-revision", default=DEFAULT_QWEN_REVISION)
+    parser.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
+    parser.add_argument(
+        "--dtype",
+        choices=("auto", "float16", "float32", "bfloat16"),
+        default="auto",
+    )
+    parser.add_argument("--local-files-only", action="store_true")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -123,6 +194,57 @@ def build_parser() -> argparse.ArgumentParser:
     rollout_parser.add_argument("--top-p", type=float, default=0.8)
     rollout_parser.add_argument("--top-k-sampling", type=int, default=20)
     rollout_parser.add_argument("--local-files-only", action="store_true")
+
+    evaluation_parser = commands.add_parser(
+        "evaluation",
+        help="run and aggregate the frozen baseline evaluation protocol",
+    )
+    evaluation_commands = evaluation_parser.add_subparsers(
+        dest="evaluation_command",
+        title="evaluation commands",
+    )
+    no_search_parser = evaluation_commands.add_parser(
+        "no-search",
+        help="evaluate one ANSWER-only generation without retrieval",
+    )
+    _add_evaluation_run_arguments(
+        no_search_parser,
+        retrieval_enabled=False,
+        trained_policy=False,
+    )
+    prompted_parser = evaluation_commands.add_parser(
+        "prompted-agent",
+        help="evaluate the pinned base checkpoint with the search agent",
+    )
+    _add_evaluation_run_arguments(
+        prompted_parser,
+        retrieval_enabled=True,
+        trained_policy=False,
+    )
+    rl_parser = evaluation_commands.add_parser(
+        "rl-agent",
+        help="evaluate a trained policy under the same search-agent controls",
+    )
+    _add_evaluation_run_arguments(
+        rl_parser,
+        retrieval_enabled=True,
+        trained_policy=True,
+    )
+    aggregate_parser = evaluation_commands.add_parser(
+        "aggregate",
+        help="recompute aggregate JSON and CSV from per-example source records",
+    )
+    aggregate_parser.add_argument("--per-example", type=Path, required=True)
+    aggregate_parser.add_argument("--examples", type=Path, required=True)
+    aggregate_parser.add_argument("--max-examples", type=int)
+    aggregate_parser.add_argument("--output-json", type=Path, required=True)
+    aggregate_parser.add_argument("--output-csv", type=Path, required=True)
+    compare_parser = evaluation_commands.add_parser(
+        "compare",
+        help="write a compatible policy-condition comparison table",
+    )
+    compare_parser.add_argument("--aggregates", type=Path, nargs="+", required=True)
+    compare_parser.add_argument("--output", type=Path, required=True)
 
     data_parser = commands.add_parser(
         "data",
@@ -375,6 +497,202 @@ def _run_agent_command(parser: argparse.ArgumentParser, args: argparse.Namespace
     return 2
 
 
+def _evaluation_scope(args: argparse.Namespace, examples_sha256: str, source_records: int) -> str:
+    if not args.final_validation:
+        return DEBUG_RESULT_SCOPE
+    if args.max_examples is not None:
+        raise ValueError("final validation cannot use --max-examples")
+    if source_records != FULL_VALIDATION_EXAMPLES:
+        raise ValueError(
+            f"final validation requires {FULL_VALIDATION_EXAMPLES} source examples, "
+            f"found {source_records}"
+        )
+    if examples_sha256 != FULL_VALIDATION_EXAMPLES_SHA256:
+        raise ValueError("final validation examples do not match the pinned canonical artifact")
+    return "baseline_validation"
+
+
+def _run_evaluation_policy(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+    command: Sequence[str],
+) -> int:
+    condition = str(args.evaluation_command).replace("-", "_")
+    if condition in {"no_search", "prompted_agent"} and (
+        args.model_name != DEFAULT_QWEN_MODEL or args.model_revision != DEFAULT_QWEN_REVISION
+    ):
+        raise ValueError("no-search and prompted-agent require the pinned baseline checkpoint")
+    limit = None if args.final_validation else (args.max_examples or 1)
+    loaded_examples = load_diagnostic_examples(args.examples, limit=limit)
+    scope_value = _evaluation_scope(
+        args,
+        loaded_examples.source_sha256,
+        loaded_examples.source_records,
+    )
+    scope = cast(EvaluationResultScope, scope_value)
+
+    retrieval_metadata: dict[str, object]
+    policy_type: type[QwenPolicyAdapter]
+    retriever = None
+    if condition == "no_search":
+        retrieval_metadata = {"enabled": False, "top_k": None}
+        policy_type = NoSearchQwenPolicyAdapter
+    else:
+        index_manifest = load_manifest(args.index_dir)
+        backend = manifest_backend(args.index_dir)
+        corpus_metadata = index_manifest.get("corpus")
+        if not isinstance(corpus_metadata, dict):
+            raise ValueError("retrieval manifest corpus must be an object")
+        if args.final_validation and (
+            backend != "faiss_bge" or corpus_metadata.get("sha256") != FULL_CORPUS_SHA256
+        ):
+            raise ValueError(
+                "final search-agent validation requires the pinned full-corpus FAISS/BGE index"
+            )
+        retriever = load_retriever(
+            args.index_dir,
+            args.corpus,
+            top_k=BASELINE_RETRIEVAL_TOP_K,
+            device=args.retrieval_device,
+        )
+        manifest_path = args.index_dir / INDEX_MANIFEST_FILENAME
+        retrieval_metadata = {
+            "backend": backend,
+            "corpus": corpus_metadata,
+            "corpus_path": str(args.corpus.resolve()),
+            "device": args.retrieval_device,
+            "enabled": True,
+            "index_dir": str(args.index_dir.resolve()),
+            "index_manifest_sha256": sha256_file(manifest_path),
+            "top_k": BASELINE_RETRIEVAL_TOP_K,
+        }
+        policy_type = QwenPolicyAdapter
+
+    settings = QwenGenerationSettings(
+        max_prompt_tokens=BASELINE_MAX_PROMPT_TOKENS,
+        max_new_tokens=BASELINE_MAX_NEW_TOKENS,
+        do_sample=False,
+        seed=BASELINE_EVALUATION_SEED,
+    )
+    policy = policy_type.from_pretrained(
+        model_name=args.model_name,
+        model_revision=args.model_revision,
+        device=args.device,
+        dtype=args.dtype,
+        settings=settings,
+        local_files_only=args.local_files_only,
+    )
+    if condition == "no_search":
+        items = run_no_search_evaluation(
+            loaded_examples.examples,
+            policy=policy,
+            run_id=args.run_id,
+            result_scope=scope,
+            count_tool_tokens=policy.count_text_tokens,
+        )
+    elif condition == "prompted_agent":
+        if retriever is None:  # pragma: no cover - guarded by the condition branch
+            raise RuntimeError("prompted-agent retriever was not initialized")
+        items = run_prompted_agent_evaluation(
+            loaded_examples.examples,
+            policy=policy,
+            retriever=retriever,
+            run_id=args.run_id,
+            result_scope=scope,
+            count_tool_tokens=policy.count_text_tokens,
+        )
+    else:
+        if retriever is None:  # pragma: no cover - guarded by the condition branch
+            raise RuntimeError("rl-agent retriever was not initialized")
+        items = run_rl_agent_evaluation(
+            loaded_examples.examples,
+            policy=policy,
+            retriever=retriever,
+            run_id=args.run_id,
+            result_scope=scope,
+            count_tool_tokens=policy.count_text_tokens,
+        )
+
+    repository_root = Path(__file__).resolve().parents[2]
+    resolved_config = build_resolved_config(
+        run_id=args.run_id,
+        policy_condition=condition,
+        result_scope=scope,
+        examples_path=args.examples,
+        examples_sha256=loaded_examples.source_sha256,
+        dataset_source=loaded_examples.examples[0].source,
+        source_records=loaded_examples.source_records,
+        requested_example_ids=[example.example_id for example in loaded_examples.examples],
+        model_name=policy.model_name,
+        model_revision=policy.model_revision,
+        prompt_format=policy.prompt_format,
+        device=policy.device,
+        dtype=args.dtype,
+        retrieval=retrieval_metadata,
+        code_state=capture_code_state(repository_root),
+        command=command,
+    )
+    artifacts = write_evaluation_artifacts(
+        args.output_dir,
+        items=items,
+        expected_example_ids=[example.example_id for example in loaded_examples.examples],
+        resolved_config=resolved_config,
+    )
+    if artifacts.status != "completed" or artifacts.aggregate is None:
+        parser.error(f"evaluation run is invalid; inspect {artifacts.manifest_path}")
+    print(
+        f"{condition} evaluation completed: examples={len(items)}, "
+        f"result_scope={scope}, benchmark_eligible="
+        f"{artifacts.aggregate['benchmark_eligible']}, output={artifacts.output_dir}"
+    )
+    return 0
+
+
+def _run_evaluation_command(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+    command: Sequence[str],
+) -> int:
+    """Run a policy condition or recompute/export already-recorded results."""
+
+    if args.evaluation_command is None:
+        parser.parse_args(["evaluation", "--help"])
+        return 0
+    try:
+        if args.evaluation_command in {"no-search", "prompted-agent", "rl-agent"}:
+            return _run_evaluation_policy(parser, args, command)
+        if args.evaluation_command == "aggregate":
+            loaded_examples = load_diagnostic_examples(args.examples, limit=args.max_examples)
+            items = read_evaluation_jsonl(args.per_example)
+            aggregate = aggregate_evaluation(
+                items,
+                expected_example_ids=[example.example_id for example in loaded_examples.examples],
+            )
+            write_json_artifact(args.output_json, aggregate)
+            write_aggregate_csv(args.output_csv, aggregate)
+            print(
+                "aggregate exactly recomputed from per-example records: "
+                f"examples={len(items)}, json={args.output_json}, csv={args.output_csv}"
+            )
+            return 0
+        aggregates = [load_aggregate_json(path) for path in args.aggregates]
+        write_comparison_csv(args.output, aggregates)
+        print(f"comparison table written: conditions={len(aggregates)}, output={args.output}")
+        return 0
+    except (
+        EvaluationFormatError,
+        EvaluationIntegrityError,
+        OSError,
+        QwenDependencyError,
+        QwenInferenceError,
+        RetrievalDependencyError,
+        RetrievalError,
+        ValueError,
+    ) as error:
+        parser.error(str(error))
+    return 2
+
+
 def _run_retrieval_command(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
     """Run one index lifecycle or retrieval diagnostic command."""
 
@@ -480,6 +798,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "agent":
         return _run_agent_command(parser, args)
+
+    if args.command == "evaluation":
+        invoked = tuple(argv) if argv is not None else tuple(sys.argv[1:])
+        return _run_evaluation_command(parser, args, ("deep-research-rl", *invoked))
 
     if args.command == "retrieval":
         return _run_retrieval_command(parser, args)

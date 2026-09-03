@@ -57,14 +57,34 @@ framework = "agent-r1_verl"
 framework_revision = "UNRESOLVED"
 
 [evaluation]
+protocol = "baseline_evaluation_v1"
+policy_conditions = ["no_search", "prompted_agent", "rl_agent"]
+final_split = "validation"
+final_examples = 7405
+debug_selection = "ordered_prefix_non_benchmark"
+answer_alias_reduction = "maximum"
+coverage = "exactly_once_in_canonical_order"
+per_example_source_of_truth = true
 metrics = [
   "exact_match",
   "token_f1",
   "success_rate",
+  "completion_rate",
+  "attempted_searches",
   "search_calls",
   "tokens",
   "evidence_recall_when_labeled",
 ]
+
+[evaluation.inference]
+decoding = "greedy"
+seed = 0
+max_new_tokens_per_step = 96
+max_prompt_tokens = 8192
+
+[evaluation.retrieval]
+top_k = 3
+evidence_document_reduction = "union_across_executed_searches"
 
 [resolution]
 required_fields = [

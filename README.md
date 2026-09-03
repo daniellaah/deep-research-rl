@@ -112,6 +112,15 @@ deep-research-rl agent rollout --help
 See [`docs/agent-rollout.md`](docs/agent-rollout.md) for transition semantics, malformed-action
 handling, the downstream training contract, and a bounded real-model debug command.
 
+## Evaluation and observability
+
+The evaluator exposes separate `no-search`, `prompted-agent`, and `rl-agent` entry points under
+`deep-research-rl evaluation`. Every run writes a complete trajectory-backed per-example JSONL,
+aggregate JSON and CSV, a resolved configuration, and a hash-bearing run manifest. Debug runs use
+ordered prefixes and are explicitly ineligible for benchmark reporting. See
+[`docs/evaluation.md`](docs/evaluation.md) for the frozen controls, metric formulas, integrity
+rules, artifact schemas, and comparison-table commands.
+
 ## Local artifact policy
 
 Datasets, model weights, indexes, checkpoints, run outputs, and generated artifacts are local

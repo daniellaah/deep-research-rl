@@ -4,10 +4,15 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Self
 
 from deep_research_rl.agent.contracts import FinishReason, PolicyOutput
-from deep_research_rl.agent.prompting import PROMPT_FORMAT_VERSION, build_policy_messages
+from deep_research_rl.agent.prompting import (
+    NO_SEARCH_PROMPT_FORMAT_VERSION,
+    PROMPT_FORMAT_VERSION,
+    build_no_search_messages,
+    build_policy_messages,
+)
 from deep_research_rl.core.models import AgentState
 
 DEFAULT_QWEN_MODEL = "Qwen/Qwen3-4B-Instruct-2507"
@@ -82,7 +87,7 @@ class QwenPolicyAdapter:
         dtype: str = "auto",
         settings: QwenGenerationSettings | None = None,
         local_files_only: bool = False,
-    ) -> QwenPolicyAdapter:
+    ) -> Self:
         """Load model and tokenizer from exactly one immutable Hugging Face revision."""
 
         if local_files_only:
@@ -134,7 +139,7 @@ class QwenPolicyAdapter:
     def generate(self, state: AgentState, *, max_searches: int) -> PolicyOutput:
         """Generate one response and retain every generated token's sampling log probability."""
 
-        messages = list(build_policy_messages(state, max_searches=max_searches))
+        messages = list(self._build_messages(state, max_searches=max_searches))
         encoded = self._tokenizer.apply_chat_template(
             messages,
             tokenize=True,
@@ -207,6 +212,34 @@ class QwenPolicyAdapter:
             response_logprobs=response_logprobs,
             finish_reason=finish_reason,
         )
+
+    def count_text_tokens(self, text: str) -> int:
+        """Count one rendered tool observation without chat-template special tokens."""
+
+        token_ids = self._tokenizer.encode(text, add_special_tokens=False)
+        return len(token_ids)
+
+    def _build_messages(
+        self,
+        state: AgentState,
+        *,
+        max_searches: int,
+    ) -> tuple[dict[str, str], ...]:
+        return build_policy_messages(state, max_searches=max_searches)
+
+
+class NoSearchQwenPolicyAdapter(QwenPolicyAdapter):
+    """Use the pinned Qwen adapter with a single-turn ANSWER-only prompt."""
+
+    prompt_format = NO_SEARCH_PROMPT_FORMAT_VERSION
+
+    def _build_messages(
+        self,
+        state: AgentState,
+        *,
+        max_searches: int,
+    ) -> tuple[dict[str, str], ...]:
+        return build_no_search_messages(state, max_searches=max_searches)
 
 
 def _resolve_device(torch_module: Any, requested: str) -> str:

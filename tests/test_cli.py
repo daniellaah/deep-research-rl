@@ -79,6 +79,62 @@ def test_agent_rollout_rejects_budget_above_frozen_limit(
     assert "baseline max_searches must be between 0 and 5" in capsys.readouterr().err
 
 
+def test_evaluation_policy_entry_points_expose_frozen_controls(tmp_path: Path) -> None:
+    no_search = build_parser().parse_args(
+        [
+            "evaluation",
+            "no-search",
+            "--run-id",
+            "debug-no-search",
+            "--examples",
+            str(tmp_path / "examples.jsonl"),
+            "--output-dir",
+            str(tmp_path / "output"),
+        ]
+    )
+    prompted = build_parser().parse_args(
+        [
+            "evaluation",
+            "prompted-agent",
+            "--run-id",
+            "debug-prompted",
+            "--examples",
+            str(tmp_path / "examples.jsonl"),
+            "--corpus",
+            str(tmp_path / "corpus.jsonl"),
+            "--index-dir",
+            str(tmp_path / "index"),
+            "--output-dir",
+            str(tmp_path / "output"),
+        ]
+    )
+
+    assert no_search.model_name == prompted.model_name == "Qwen/Qwen3-4B-Instruct-2507"
+    assert no_search.model_revision == prompted.model_revision
+    assert no_search.max_examples is None
+    assert prompted.final_validation is False
+
+
+def test_rl_evaluation_requires_an_explicit_trained_checkpoint(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        build_parser().parse_args(
+            [
+                "evaluation",
+                "rl-agent",
+                "--run-id",
+                "debug-rl",
+                "--examples",
+                str(tmp_path / "examples.jsonl"),
+                "--corpus",
+                str(tmp_path / "corpus.jsonl"),
+                "--index-dir",
+                str(tmp_path / "index"),
+                "--output-dir",
+                str(tmp_path / "output"),
+            ]
+        )
+
+
 def test_synthetic_smoke_writes_reviewable_trajectory(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
