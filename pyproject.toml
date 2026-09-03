@@ -65,3 +65,7 @@ select = ["B", "E", "F", "I", "RUF", "SIM", "UP"]
 python_version = "3.11"
 strict = true
 files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["torch", "transformers", "transformers.*"]
+ignore_missing_imports = true
