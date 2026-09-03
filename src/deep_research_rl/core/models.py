@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -21,6 +22,32 @@ class Document:
             raise ValueError("document_id must not be empty")
         if not self.title:
             raise ValueError("title must not be empty")
+
+
+@dataclass(frozen=True, slots=True)
+class SearchResult:
+    """One ranked retrieval hit with its corpus identity and backend score."""
+
+    document_id: str
+    title: str
+    text: str
+    score: float
+    rank: int
+
+    def __post_init__(self) -> None:
+        if not self.document_id:
+            raise ValueError("document_id must not be empty")
+        if not self.title:
+            raise ValueError("title must not be empty")
+        if not math.isfinite(self.score):
+            raise ValueError("score must be finite")
+        if self.rank < 1:
+            raise ValueError("rank must be at least 1")
+
+    def to_document(self) -> Document:
+        """Drop rank metadata while preserving the traceable corpus record."""
+
+        return Document(document_id=self.document_id, title=self.title, text=self.text)
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,7 +107,7 @@ class Observation:
     status: ObservationStatus
     message: str
     query: str | None = None
-    documents: tuple[Document, ...] = ()
+    documents: tuple[SearchResult, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.message:

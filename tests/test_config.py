@@ -21,6 +21,20 @@ def test_baseline_contract_defaults_load() -> None:
     assert config["agent"]["actions"] == ["SEARCH", "ANSWER"]
     assert config["agent"]["context_policy"] == "append_only"
     assert config["agent"]["max_policy_searches"] == 5
+    assert config["retrieval"]["local"] == {
+        "backend": "bm25",
+        "b": 0.75,
+        "k1": 1.5,
+        "tokenizer": "unicode_word_lower_v1",
+    }
+    assert config["retrieval"]["production"]["embedding_model"] == "BAAI/bge-large-en-v1.5"
+    assert (
+        config["retrieval"]["production"]["embedding_model_revision"]
+        == "d4aa6901d3a41ba39fb536a557fa166f842b0e09"
+    )
+    assert (
+        config["retrieval"]["production"]["revision"] == "b124aa46534cbf2fb8bc8af11405774984c42ac7"
+    )
     assert config["reward"]["intermediate"] == 0.0
     assert config["reward"]["search_cost"] == 0.0
     assert config["reward"]["token_cost"] == 0.0

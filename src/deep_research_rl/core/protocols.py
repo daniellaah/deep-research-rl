@@ -8,16 +8,18 @@ from typing import Protocol
 from deep_research_rl.core.models import (
     Action,
     AgentState,
-    Document,
     Example,
     Observation,
+    SearchResult,
 )
 
 
 class Retriever(Protocol):
     """Return ranked documents for a policy-selected query."""
 
-    def search(self, query: str) -> tuple[Document, ...]: ...
+    def search(self, query: str) -> tuple[SearchResult, ...]: ...
+
+    def search_batch(self, queries: Sequence[str]) -> tuple[tuple[SearchResult, ...], ...]: ...
 
 
 class Policy(Protocol):

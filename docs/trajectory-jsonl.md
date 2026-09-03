@@ -53,6 +53,8 @@ An agent state contains `example_id`, `question`, the ordered `context`, `execut
 `terminated`, and the optional terminal `answer`. Context is append-only: every next state retains
 the entire previous context and appends exactly its new observation. A rejected over-budget search
 adds feedback to context but does not invoke retrieval or increment `executed_searches`.
+Every document in a successful search observation contains the corpus `document_id`, `title`, and
+`text` together with its backend-specific finite `score` and contiguous one-based `rank`.
 
 ## Generate and read an example
 

@@ -10,6 +10,7 @@ from deep_research_rl.core.models import (
     Example,
     Observation,
     SearchAction,
+    SearchResult,
     Step,
     Trajectory,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "Retriever",
     "RewardFunction",
     "SearchAction",
+    "SearchResult",
     "Step",
     "Trajectory",
     "parse_action",

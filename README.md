@@ -7,8 +7,8 @@ experiments have a clear comparison point.
 
 The repository provides a dependency-light project foundation, a deterministic CPU vertical slice
 across retrieval, state transitions, trajectories, outcome reward, terminal credit, and metrics,
-and a reproducible HotpotQA distractor data pipeline. Model-backed rollout, production retrieval,
-and training are added as independently testable layers.
+a reproducible HotpotQA distractor data pipeline, and integrity-checked BM25 and FAISS/BGE
+retrieval backends. Model-backed rollout and training are added as independently testable layers.
 
 ## Quick start
 
@@ -76,6 +76,24 @@ files by URL, byte count, record count, and SHA-256. Dependency-light commands d
 and verify canonical examples, a deduplicated corpus, Agent-R1 logical rows, and a complete build
 manifest. Debug builds select bounded deterministic prefixes and require no GPU. See
 [`docs/hotpotqa-data.md`](docs/hotpotqa-data.md) for commands and schemas.
+
+## Retrieval indexes
+
+Both retrieval backends return the same ranked result schema: stable document ID, title, text,
+score, and one-based rank. Every saved index has a deterministic manifest that binds it to the
+exact corpus byte hash, ordered document-ID hash, and cardinality and also hashes each index
+artifact. BM25 stays dependency-light; FAISS/BGE uses a separately installable, pinned runtime:
+
+```bash
+python -m pip install -e ".[retrieval]"
+deep-research-rl retrieval build \
+  --backend bm25 \
+  --corpus data/processed/hotpotqa-debug/corpus.jsonl \
+  --index-dir indexes/hotpotqa-debug/bm25
+```
+
+See [`docs/retrieval.md`](docs/retrieval.md) for FAISS/BGE commands, integrity behavior,
+Agent-R1 compatibility, and supporting-document Recall@K diagnostics.
 
 ## Local artifact policy
 

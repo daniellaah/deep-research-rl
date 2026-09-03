@@ -9,11 +9,11 @@ from deep_research_rl.core.models import (
     Action,
     AgentState,
     AnswerAction,
-    Document,
     EpisodeMetrics,
     Example,
     Observation,
     SearchAction,
+    SearchResult,
     Step,
     Trajectory,
 )
@@ -25,9 +25,11 @@ class TrajectoryFormatError(ValueError):
     """Raised when serialized trajectory data does not match the schema."""
 
 
-def _document_to_dict(document: Document) -> dict[str, object]:
+def _document_to_dict(document: SearchResult) -> dict[str, object]:
     return {
         "document_id": document.document_id,
+        "rank": document.rank,
+        "score": document.score,
         "title": document.title,
         "text": document.text,
     }
@@ -159,10 +161,14 @@ def _number(value: object, field: str) -> float:
     return float(value)
 
 
-def _document_from_dict(value: object) -> Document:
+def _document_from_dict(value: object, *, default_rank: int) -> SearchResult:
     record = _mapping(value, "document")
-    return Document(
+    raw_rank = record.get("rank", default_rank)
+    raw_score = record.get("score", 0.0)
+    return SearchResult(
         document_id=_string(record.get("document_id"), "document.document_id"),
+        rank=_integer(raw_rank, "document.rank"),
+        score=_number(raw_score, "document.score"),
         title=_string(record.get("title"), "document.title"),
         text=_string(record.get("text"), "document.text"),
     )
@@ -211,8 +217,11 @@ def _observation_from_dict(value: object) -> Observation:
     if status not in {"search_executed", "search_rejected", "answer_recorded"}:
         raise TrajectoryFormatError(f"unsupported observation.status: {status}")
     documents = tuple(
-        _document_from_dict(document)
-        for document in _sequence(record.get("documents"), "observation.documents")
+        _document_from_dict(document, default_rank=rank)
+        for rank, document in enumerate(
+            _sequence(record.get("documents"), "observation.documents"),
+            1,
+        )
     )
     if status == "search_executed":
         return Observation(

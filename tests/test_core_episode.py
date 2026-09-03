@@ -1,9 +1,11 @@
+from collections.abc import Sequence
+
 from deep_research_rl.core.context import AppendOnlyContextPolicy
 from deep_research_rl.core.costs import ZeroCost
 from deep_research_rl.core.credit import TerminalOnlyCreditAssigner
 from deep_research_rl.core.environment import ResearchEnvironment
 from deep_research_rl.core.fixtures import synthetic_two_hop_fixture
-from deep_research_rl.core.models import Document
+from deep_research_rl.core.models import SearchResult
 from deep_research_rl.core.policies import ScriptedPolicy
 from deep_research_rl.core.retrieval import BM25Retriever
 from deep_research_rl.core.rewards import TerminalExactMatchReward
@@ -53,9 +55,12 @@ class CountingRetriever:
     def __init__(self) -> None:
         self.queries: list[str] = []
 
-    def search(self, query: str) -> tuple[Document, ...]:
+    def search(self, query: str) -> tuple[SearchResult, ...]:
         self.queries.append(query)
         return ()
+
+    def search_batch(self, queries: Sequence[str]) -> tuple[tuple[SearchResult, ...], ...]:
+        return tuple(self.search(query) for query in queries)
 
 
 def test_five_search_budget_rejects_without_executing_or_counting_attempt() -> None:
