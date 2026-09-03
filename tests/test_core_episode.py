@@ -7,9 +7,9 @@ from deep_research_rl.core.environment import ResearchEnvironment
 from deep_research_rl.core.fixtures import synthetic_two_hop_fixture
 from deep_research_rl.core.models import SearchResult
 from deep_research_rl.core.policies import ScriptedPolicy
-from deep_research_rl.core.retrieval import BM25Retriever
 from deep_research_rl.core.rewards import TerminalExactMatchReward
 from deep_research_rl.core.rollout import run_episode
+from deep_research_rl.retrieval.bm25 import BM25Retriever
 
 
 def test_two_hop_episode_terminates_with_append_only_context_and_terminal_credit() -> None:

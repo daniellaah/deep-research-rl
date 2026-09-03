@@ -87,7 +87,11 @@ def test_faiss_bge_small_index_batch_consistency_traceability_and_agent_r1_adapt
     batch = retriever.search_batch(("gamma", "delta"))
 
     assert batch[0] == single
-    assert single[0].to_document() == documents[1]
+    assert (single[0].document_id, single[0].title, single[0].text) == (
+        documents[1].document_id,
+        documents[1].title,
+        documents[1].text,
+    )
     assert single[0].rank == 1
     assert single[0].score == pytest.approx(1.0)
     assert batch[1][0].document_id == "doc-delta"

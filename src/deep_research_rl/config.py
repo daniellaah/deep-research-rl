@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -45,9 +44,3 @@ def load_config(path: str | Path) -> dict[str, Any]:
         raise ConfigError(f"config_kind must be one of: {allowed}")
 
     return config
-
-
-def config_as_json(config: dict[str, Any]) -> str:
-    """Return stable, human-readable JSON for a loaded configuration."""
-
-    return json.dumps(config, indent=2, sort_keys=True, ensure_ascii=False)

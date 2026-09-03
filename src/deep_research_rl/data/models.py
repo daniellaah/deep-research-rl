@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from deep_research_rl.core.models import Document, Example
+from deep_research_rl.core.models import Example
 
 DATA_SCHEMA_VERSION = 1
 DATASET_NAME = "hotpot_qa"
@@ -75,11 +75,6 @@ class CorpusDocument:
             "text": self.text,
             "title": self.title,
         }
-
-    def to_core_document(self) -> Document:
-        """Adapt this record to the dependency-light local retrieval contract."""
-
-        return Document(document_id=self.document_id, title=self.title, text=self.text)
 
 
 @dataclass(frozen=True, slots=True)

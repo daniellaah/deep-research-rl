@@ -77,7 +77,11 @@ def test_bm25_index_round_trip_and_result_traceability(
     result = retriever.search("Gamma City")[0]
 
     assert manifest_path == index_dir / "manifest.json"
-    assert result.to_document() == retrieval_documents[1]
+    assert (result.document_id, result.title, result.text) == (
+        retrieval_documents[1].document_id,
+        retrieval_documents[1].title,
+        retrieval_documents[1].text,
+    )
     manifest = load_manifest(index_dir)
     assert manifest["backend"] == "bm25"
     corpus_metadata = manifest["corpus"]

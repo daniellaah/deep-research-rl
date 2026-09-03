@@ -36,9 +36,8 @@ class DataPipelineError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class HotpotQABuildResult:
-    """Paths and high-level counts for one completed build."""
+    """Manifest path and high-level counts for one completed build."""
 
-    output_dir: Path
     manifest_path: Path
     train_examples: int
     validation_examples: int
@@ -508,7 +507,6 @@ def build_hotpotqa(
     _write_manifest(manifest_path, manifest)
     verify_hotpotqa_build(destination)
     return HotpotQABuildResult(
-        output_dir=destination,
         manifest_path=manifest_path,
         train_examples=len(examples_by_split["train"]),
         validation_examples=len(examples_by_split["validation"]),

@@ -33,19 +33,10 @@ class CorpusFingerprint:
 
 @dataclass(frozen=True, slots=True)
 class CorpusSnapshot:
-    """An immutable ordered corpus plus lookup and integrity metadata."""
+    """An immutable ordered corpus plus integrity metadata."""
 
-    path: Path
     documents: tuple[Document, ...]
     fingerprint: CorpusFingerprint
-
-    def resolve(self, document_id: str) -> Document:
-        """Return the exact corpus record for a stable document ID."""
-
-        for document in self.documents:
-            if document.document_id == document_id:
-                return document
-        raise KeyError(document_id)
 
 
 def _required_string(record: object, field: str, *, line_number: int) -> str:
@@ -96,7 +87,6 @@ def load_corpus(path: str | Path) -> CorpusSnapshot:
     if not documents:
         raise RetrievalError(f"corpus must contain at least one document: {corpus_path}")
     return CorpusSnapshot(
-        path=corpus_path,
         documents=tuple(documents),
         fingerprint=CorpusFingerprint(
             bytes=byte_count,

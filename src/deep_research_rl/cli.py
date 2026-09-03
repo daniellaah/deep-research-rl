@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from deep_research_rl import __version__
-from deep_research_rl.config import ConfigError, config_as_json, load_config
+from deep_research_rl.config import ConfigError, load_config
 from deep_research_rl.core.models import SearchResult
 from deep_research_rl.core.smoke import run_synthetic_smoke
 from deep_research_rl.data.hotpotqa import (
@@ -371,7 +371,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error(str(error))
 
     if args.config_command == "show":
-        print(config_as_json(config))
+        print(json.dumps(config, indent=2, sort_keys=True, ensure_ascii=False))
     else:
         print(f"valid {config['config_kind']} configuration: {args.path}")
     return 0

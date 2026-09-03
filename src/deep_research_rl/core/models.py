@@ -44,11 +44,6 @@ class SearchResult:
         if self.rank < 1:
             raise ValueError("rank must be at least 1")
 
-    def to_document(self) -> Document:
-        """Drop rank metadata while preserving the traceable corpus record."""
-
-        return Document(document_id=self.document_id, title=self.title, text=self.text)
-
 
 @dataclass(frozen=True, slots=True)
 class Example:
