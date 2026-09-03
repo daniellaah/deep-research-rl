@@ -28,6 +28,12 @@ retrieval = [
   "torch==2.14.0",
   "transformers==4.57.6",
 ]
+rollout = [
+  "accelerate==1.14.0",
+  "huggingface-hub==0.34.4",
+  "torch==2.14.0",
+  "transformers==4.57.6",
+]
 
 [project.scripts]
 deep-research-rl = "deep_research_rl.cli:main"

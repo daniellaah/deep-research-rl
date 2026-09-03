@@ -7,8 +7,9 @@ experiments have a clear comparison point.
 
 The repository provides a dependency-light project foundation, a deterministic CPU vertical slice
 across retrieval, state transitions, trajectories, outcome reward, terminal credit, and metrics,
-a reproducible HotpotQA distractor data pipeline, and integrity-checked BM25 and FAISS/BGE
-retrieval backends. Model-backed rollout and training are added as independently testable layers.
+a reproducible HotpotQA distractor data pipeline, integrity-checked BM25 and FAISS/BGE retrieval
+backends, and a revision-pinned Qwen3 rollout adapter. Distributed training remains a separate,
+independently testable layer.
 
 ## Quick start
 
@@ -94,6 +95,22 @@ deep-research-rl retrieval build \
 
 See [`docs/retrieval.md`](docs/retrieval.md) for FAISS/BGE commands, integrity behavior,
 Agent-R1 compatibility, and supporting-document Recall@K diagnostics.
+
+## Model-backed rollout
+
+The optional rollout runtime loads `Qwen/Qwen3-4B-Instruct-2507` from an immutable revision and
+records exact prompt/response token IDs, masks, and per-response-token generation log
+probabilities. It preserves the complete observation history, accepts only exact `SEARCH(query)`
+or `ANSWER(answer)` output, never forces a search, and enforces separate five-search and
+maximum-step safety bounds.
+
+```bash
+python -m pip install -e ".[dev,rollout]"
+deep-research-rl agent rollout --help
+```
+
+See [`docs/agent-rollout.md`](docs/agent-rollout.md) for transition semantics, malformed-action
+handling, the downstream training contract, and a bounded real-model debug command.
 
 ## Local artifact policy
 

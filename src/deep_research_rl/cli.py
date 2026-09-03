@@ -9,8 +9,23 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from deep_research_rl import __version__
+from deep_research_rl.agent.qwen import (
+    DEFAULT_QWEN_MODEL,
+    DEFAULT_QWEN_REVISION,
+    QwenDependencyError,
+    QwenGenerationSettings,
+    QwenInferenceError,
+    QwenPolicyAdapter,
+)
+from deep_research_rl.agent.rollout import DEBUG_RESULT_SCOPE, run_model_rollout
+from deep_research_rl.agent.serialization import write_agent_rollout_jsonl
 from deep_research_rl.config import ConfigError, load_config
+from deep_research_rl.core.context import AppendOnlyContextPolicy
+from deep_research_rl.core.costs import ZeroCost
+from deep_research_rl.core.credit import TerminalOnlyCreditAssigner
+from deep_research_rl.core.environment import ResearchEnvironment
 from deep_research_rl.core.models import SearchResult
+from deep_research_rl.core.rewards import TerminalExactMatchReward
 from deep_research_rl.core.smoke import run_synthetic_smoke
 from deep_research_rl.data.hotpotqa import (
     DataPipelineError,
@@ -73,6 +88,41 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="destination for the generated JSONL trajectory",
     )
+
+    agent_parser = commands.add_parser(
+        "agent",
+        help="run bounded model-backed agent validation",
+    )
+    agent_commands = agent_parser.add_subparsers(dest="agent_command", title="agent commands")
+    rollout_parser = agent_commands.add_parser(
+        "rollout",
+        help="run strict SEARCH/ANSWER rollouts over a bounded example prefix",
+    )
+    rollout_parser.add_argument("--examples", type=Path, required=True)
+    rollout_parser.add_argument("--corpus", type=Path, required=True)
+    rollout_parser.add_argument("--index-dir", type=Path, required=True)
+    rollout_parser.add_argument("--output", type=Path, required=True)
+    rollout_parser.add_argument("--max-examples", type=int, default=1)
+    rollout_parser.add_argument("--top-k", type=int, default=3)
+    rollout_parser.add_argument("--max-searches", type=int, default=5)
+    rollout_parser.add_argument("--max-steps", type=int, default=8)
+    rollout_parser.add_argument("--max-prompt-tokens", type=int, default=8192)
+    rollout_parser.add_argument("--max-new-tokens", type=int, default=96)
+    rollout_parser.add_argument("--model-name", default=DEFAULT_QWEN_MODEL)
+    rollout_parser.add_argument("--model-revision", default=DEFAULT_QWEN_REVISION)
+    rollout_parser.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
+    rollout_parser.add_argument(
+        "--dtype",
+        choices=("auto", "float16", "float32", "bfloat16"),
+        default="auto",
+    )
+    rollout_parser.add_argument("--retrieval-device", default="cpu")
+    rollout_parser.add_argument("--seed", type=int, default=0)
+    rollout_parser.add_argument("--do-sample", action="store_true")
+    rollout_parser.add_argument("--temperature", type=float, default=0.7)
+    rollout_parser.add_argument("--top-p", type=float, default=0.8)
+    rollout_parser.add_argument("--top-k-sampling", type=int, default=20)
+    rollout_parser.add_argument("--local-files-only", action="store_true")
 
     data_parser = commands.add_parser(
         "data",
@@ -251,6 +301,80 @@ def _result_record(result: SearchResult) -> dict[str, object]:
     }
 
 
+def _run_agent_command(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    """Run a bounded real-model debug rollout without changing baseline semantics."""
+
+    if args.agent_command is None:
+        parser.parse_args(["agent", "--help"])
+        return 0
+    try:
+        if not 0 <= args.max_searches <= 5:
+            raise ValueError("baseline max_searches must be between 0 and 5")
+        if args.max_steps < 1:
+            raise ValueError("max_steps must be at least 1")
+        examples = load_diagnostic_examples(args.examples, limit=args.max_examples).examples
+        retriever = load_retriever(
+            args.index_dir,
+            args.corpus,
+            top_k=args.top_k,
+            device=args.retrieval_device,
+        )
+        settings = QwenGenerationSettings(
+            max_prompt_tokens=args.max_prompt_tokens,
+            max_new_tokens=args.max_new_tokens,
+            do_sample=args.do_sample,
+            temperature=args.temperature,
+            top_p=args.top_p,
+            top_k=args.top_k_sampling,
+            seed=args.seed,
+        )
+        policy = QwenPolicyAdapter.from_pretrained(
+            model_name=args.model_name,
+            model_revision=args.model_revision,
+            device=args.device,
+            dtype=args.dtype,
+            settings=settings,
+            local_files_only=args.local_files_only,
+        )
+        environment = ResearchEnvironment(
+            retriever,
+            AppendOnlyContextPolicy(),
+            max_searches=args.max_searches,
+        )
+        rollouts = tuple(
+            run_model_rollout(
+                example,
+                policy,
+                environment,
+                TerminalExactMatchReward(),
+                TerminalOnlyCreditAssigner(),
+                ZeroCost(),
+                max_steps=args.max_steps,
+                result_scope=DEBUG_RESULT_SCOPE,
+            )
+            for example in examples
+        )
+        write_agent_rollout_jsonl(args.output, rollouts)
+        answered = sum(rollout.termination_reason == "answered" for rollout in rollouts)
+        searches = sum(rollout.final_state.executed_searches for rollout in rollouts)
+        print(
+            "bounded real-model debug rollout completed: "
+            f"examples={len(rollouts)}, answered={answered}, executed_searches={searches}, "
+            f"device={policy.device}, result_scope={DEBUG_RESULT_SCOPE}, output={args.output}"
+        )
+        return 0
+    except (
+        OSError,
+        QwenDependencyError,
+        QwenInferenceError,
+        RetrievalDependencyError,
+        RetrievalError,
+        ValueError,
+    ) as error:
+        parser.error(str(error))
+    return 2
+
+
 def _run_retrieval_command(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
     """Run one index lifecycle or retrieval diagnostic command."""
 
@@ -353,6 +477,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "data":
         return _run_data_command(parser, args)
+
+    if args.command == "agent":
+        return _run_agent_command(parser, args)
 
     if args.command == "retrieval":
         return _run_retrieval_command(parser, args)

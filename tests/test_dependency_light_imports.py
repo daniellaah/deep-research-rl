@@ -20,3 +20,22 @@ print(json.dumps(sorted(name for name in sys.modules if name.split('.')[0] in {
     )
 
     assert json.loads(result.stdout) == []
+
+
+def test_agent_contract_import_does_not_load_optional_model_runtime() -> None:
+    code = """
+import json
+import sys
+import deep_research_rl.agent
+print(json.dumps(sorted(name for name in sys.modules if name.split('.')[0] in {
+    'torch', 'transformers', 'verl', 'agent_r1'
+})))
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert json.loads(result.stdout) == []

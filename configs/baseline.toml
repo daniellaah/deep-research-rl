@@ -10,13 +10,21 @@ revision = "UNRESOLVED"
 [model]
 family = "Qwen3"
 scale = "4B"
-checkpoint = "UNRESOLVED"
-revision = "UNRESOLVED"
+checkpoint = "Qwen/Qwen3-4B-Instruct-2507"
+revision = "cdbee75f17c01a7cc42f958dc650907174af0554"
 
 [agent]
 actions = ["SEARCH", "ANSWER"]
 context_policy = "append_only"
 max_policy_searches = 5
+max_steps = 8
+action_format = "strict_search_answer_v1"
+malformed_action = "append_feedback_and_continue"
+
+[rollout]
+prompt_format = "qwen3_strict_search_answer_v1"
+max_prompt_tokens = 8192
+max_new_tokens_per_step = 96
 
 [retrieval.local]
 backend = "bm25"

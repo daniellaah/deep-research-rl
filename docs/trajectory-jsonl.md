@@ -66,3 +66,8 @@ The output directory is intentionally ignored because trajectories are run artif
 callers can round-trip records with `trajectory_as_json`, `trajectory_from_json`,
 `write_trajectory_jsonl`, and `read_trajectory_jsonl` from
 `deep_research_rl.core.serialization`.
+
+Model-backed runs use a separate `agent_rollout` record so that exact model provenance, prompt
+format, malformed outputs, safety termination, token IDs, masks, and generation-time log
+probabilities are preserved without changing this dependency-light core schema. See
+[`agent-rollout.md`](agent-rollout.md) for that contract.

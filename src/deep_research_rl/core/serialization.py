@@ -214,7 +214,12 @@ def _action_from_dict(value: object) -> Action:
 def _observation_from_dict(value: object) -> Observation:
     record = _mapping(value, "observation")
     status = _string(record.get("status"), "observation.status")
-    if status not in {"search_executed", "search_rejected", "answer_recorded"}:
+    if status not in {
+        "search_executed",
+        "search_rejected",
+        "answer_recorded",
+        "malformed_action",
+    }:
         raise TrajectoryFormatError(f"unsupported observation.status: {status}")
     documents = tuple(
         _document_from_dict(document, default_rank=rank)
@@ -237,12 +242,49 @@ def _observation_from_dict(value: object) -> Observation:
             query=_optional_string(record.get("query"), "observation.query"),
             documents=documents,
         )
+    if status == "answer_recorded":
+        return Observation(
+            status="answer_recorded",
+            message=_string(record.get("message"), "observation.message"),
+            query=_optional_string(record.get("query"), "observation.query"),
+            documents=documents,
+        )
     return Observation(
-        status="answer_recorded",
+        status="malformed_action",
         message=_string(record.get("message"), "observation.message"),
         query=_optional_string(record.get("query"), "observation.query"),
         documents=documents,
     )
+
+
+def example_to_record(example: Example) -> dict[str, object]:
+    """Return the stable nested record for an example."""
+
+    return _example_to_dict(example)
+
+
+def action_to_record(action: Action) -> dict[str, object]:
+    """Return the stable nested record for one executable action."""
+
+    return _action_to_dict(action)
+
+
+def observation_to_record(observation: Observation) -> dict[str, object]:
+    """Return the stable nested record for an environment observation."""
+
+    return _observation_to_dict(observation)
+
+
+def state_to_record(state: AgentState) -> dict[str, object]:
+    """Return the stable nested record for an agent state."""
+
+    return _state_to_dict(state)
+
+
+def metrics_to_record(metrics: EpisodeMetrics) -> dict[str, object]:
+    """Return the stable nested record for episode metrics."""
+
+    return _metrics_to_dict(metrics)
 
 
 def _state_from_dict(value: object) -> AgentState:
@@ -288,6 +330,36 @@ def _metrics_from_dict(value: object) -> EpisodeMetrics:
         ),
         step_count=_integer(record.get("step_count"), "metrics.step_count"),
     )
+
+
+def example_from_record(value: object) -> Example:
+    """Validate and reconstruct an example nested record."""
+
+    return _example_from_dict(value)
+
+
+def action_from_record(value: object) -> Action:
+    """Validate and reconstruct an executable action nested record."""
+
+    return _action_from_dict(value)
+
+
+def observation_from_record(value: object) -> Observation:
+    """Validate and reconstruct an observation nested record."""
+
+    return _observation_from_dict(value)
+
+
+def state_from_record(value: object) -> AgentState:
+    """Validate and reconstruct an agent-state nested record."""
+
+    return _state_from_dict(value)
+
+
+def metrics_from_record(value: object) -> EpisodeMetrics:
+    """Validate and reconstruct an episode-metrics nested record."""
+
+    return _metrics_from_dict(value)
 
 
 def trajectory_from_dict(value: object) -> Trajectory:

@@ -21,6 +21,20 @@ def test_baseline_contract_defaults_load() -> None:
     assert config["agent"]["actions"] == ["SEARCH", "ANSWER"]
     assert config["agent"]["context_policy"] == "append_only"
     assert config["agent"]["max_policy_searches"] == 5
+    assert config["agent"]["max_steps"] == 8
+    assert config["agent"]["action_format"] == "strict_search_answer_v1"
+    assert config["agent"]["malformed_action"] == "append_feedback_and_continue"
+    assert config["model"] == {
+        "checkpoint": "Qwen/Qwen3-4B-Instruct-2507",
+        "family": "Qwen3",
+        "revision": "cdbee75f17c01a7cc42f958dc650907174af0554",
+        "scale": "4B",
+    }
+    assert config["rollout"] == {
+        "max_new_tokens_per_step": 96,
+        "max_prompt_tokens": 8192,
+        "prompt_format": "qwen3_strict_search_answer_v1",
+    }
     assert config["retrieval"]["local"] == {
         "backend": "bm25",
         "b": 0.75,

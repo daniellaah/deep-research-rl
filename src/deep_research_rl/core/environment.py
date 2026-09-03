@@ -35,6 +35,12 @@ class ResearchEnvironment:
         self._context_policy = context_policy
         self._max_searches = max_searches
 
+    @property
+    def max_searches(self) -> int:
+        """Return the hard limit on executed policy-selected searches."""
+
+        return self._max_searches
+
     def reset(self, example: Example) -> AgentState:
         """Create an empty initial state for an example."""
 
@@ -96,3 +102,21 @@ class ResearchEnvironment:
             ),
             observation,
         )
+
+    def record_malformed_action(
+        self,
+        state: AgentState,
+        parse_error: str,
+    ) -> tuple[AgentState, Observation]:
+        """Append deterministic feedback for a response that is not an executable action."""
+
+        if state.terminated:
+            raise EpisodeTerminatedError("cannot record an action attempt after termination")
+        if not parse_error:
+            raise ValueError("parse_error must not be empty")
+        observation = Observation(
+            status="malformed_action",
+            message=f"malformed action rejected: {parse_error}",
+        )
+        next_context = self._context_policy.update(state.context, observation)
+        return replace(state, context=next_context), observation

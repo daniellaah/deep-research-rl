@@ -6,7 +6,12 @@ import math
 from dataclasses import dataclass
 from typing import Literal
 
-ObservationStatus = Literal["search_executed", "search_rejected", "answer_recorded"]
+ObservationStatus = Literal[
+    "search_executed",
+    "search_rejected",
+    "answer_recorded",
+    "malformed_action",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,6 +118,8 @@ class Observation:
             raise ValueError("rejected searches cannot contain documents")
         if self.status == "answer_recorded" and (self.query is not None or self.documents):
             raise ValueError("answer observations cannot contain a query or documents")
+        if self.status == "malformed_action" and (self.query is not None or self.documents):
+            raise ValueError("malformed-action observations cannot contain a query or documents")
 
 
 @dataclass(frozen=True, slots=True)

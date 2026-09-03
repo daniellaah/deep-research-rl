@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from deep_research_rl.cli import main
+from deep_research_rl.cli import build_parser, main
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 BASELINE_CONFIG = REPOSITORY_ROOT / "configs" / "baseline.toml"
@@ -28,6 +28,55 @@ def test_show_baseline(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
     assert '"config_kind": "defaults"' in output
     assert '"max_policy_searches": 5' in output
+    assert '"checkpoint": "Qwen/Qwen3-4B-Instruct-2507"' in output
+
+
+def test_agent_rollout_parser_has_frozen_baseline_defaults(tmp_path: Path) -> None:
+    args = build_parser().parse_args(
+        [
+            "agent",
+            "rollout",
+            "--examples",
+            str(tmp_path / "examples.jsonl"),
+            "--corpus",
+            str(tmp_path / "corpus.jsonl"),
+            "--index-dir",
+            str(tmp_path / "index"),
+            "--output",
+            str(tmp_path / "rollout.jsonl"),
+        ]
+    )
+
+    assert args.model_name == "Qwen/Qwen3-4B-Instruct-2507"
+    assert args.model_revision == "cdbee75f17c01a7cc42f958dc650907174af0554"
+    assert args.max_searches == 5
+    assert args.max_steps == 8
+    assert args.do_sample is False
+
+
+def test_agent_rollout_rejects_budget_above_frozen_limit(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        main(
+            [
+                "agent",
+                "rollout",
+                "--examples",
+                str(tmp_path / "missing-examples.jsonl"),
+                "--corpus",
+                str(tmp_path / "missing-corpus.jsonl"),
+                "--index-dir",
+                str(tmp_path / "missing-index"),
+                "--output",
+                str(tmp_path / "rollout.jsonl"),
+                "--max-searches",
+                "6",
+            ]
+        )
+
+    assert "baseline max_searches must be between 0 and 5" in capsys.readouterr().err
 
 
 def test_synthetic_smoke_writes_reviewable_trajectory(

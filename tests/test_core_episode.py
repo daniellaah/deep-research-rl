@@ -101,3 +101,23 @@ def test_five_search_budget_rejects_without_executing_or_counting_attempt() -> N
     assert [step.credit for step in trajectory.steps[:-1]] == [0.0] * 6
     assert trajectory.steps[-1].reward == 1.0
     assert trajectory.steps[-1].credit == 1.0
+
+
+def test_malformed_feedback_is_append_only_without_becoming_an_action() -> None:
+    example, _ = synthetic_two_hop_fixture()
+    environment = ResearchEnvironment(
+        CountingRetriever(),
+        AppendOnlyContextPolicy(),
+        max_searches=5,
+    )
+    initial_state = environment.reset(example)
+
+    next_state, observation = environment.record_malformed_action(
+        initial_state,
+        "expected exactly SEARCH(query) or ANSWER(answer)",
+    )
+
+    assert observation.status == "malformed_action"
+    assert next_state.context == (observation,)
+    assert next_state.executed_searches == 0
+    assert next_state.terminated is False
