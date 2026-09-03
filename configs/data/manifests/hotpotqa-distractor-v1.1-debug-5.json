@@ -1,0 +1,104 @@
+{
+  "build": {
+    "limits": {
+      "train": 5,
+      "validation": 5
+    },
+    "mode": "debug"
+  },
+  "compatibility": {
+    "agent_r1": {
+      "logical_columns": [
+        "data_source",
+        "prompt",
+        "reward_model",
+        "extra_info"
+      ],
+      "repository": "https://github.com/AgentR1/Agent-R1",
+      "revision": "b124aa46534cbf2fb8bc8af11405774984c42ac7"
+    },
+    "local_core_adapter": "HotpotQAExample.to_core_example"
+  },
+  "counts": {
+    "context_document_occurrences": 100,
+    "corpus_documents": 100,
+    "deduplicated_context_occurrences": 0,
+    "supporting_fact_reference_issues": 0,
+    "train_examples": 5,
+    "validation_examples": 5
+  },
+  "dataset": "hotpot_qa",
+  "hash_algorithm": "sha256",
+  "integrity": {
+    "corpus_document_ids_unique": true,
+    "evaluation_labels_excluded_from_prompt": true,
+    "train_validation_ids_disjoint": true
+  },
+  "license": {
+    "name": "CC BY-SA 4.0",
+    "url": "https://creativecommons.org/licenses/by-sa/4.0/legalcode"
+  },
+  "outputs": {
+    "agent_r1_train": {
+      "bytes": 5152,
+      "path": "agent_r1/train.jsonl",
+      "records": 5,
+      "sha256": "c5a0af78be2bdf59ee73c1ec755b7f2741333abefae2250ed944ef6aaf60245a"
+    },
+    "agent_r1_validation": {
+      "bytes": 5458,
+      "path": "agent_r1/validation.jsonl",
+      "records": 5,
+      "sha256": "f5379e854caaba9ba395d07aec99d762c7d06c950276d7722a37f87dd2b19f64"
+    },
+    "corpus": {
+      "bytes": 123746,
+      "path": "corpus.jsonl",
+      "records": 100,
+      "sha256": "5c3e30f2c595470ca4913a0e6d731ac57d4de5bf8e24784027dd8997f7944795"
+    },
+    "examples_train": {
+      "bytes": 9462,
+      "path": "examples/train.jsonl",
+      "records": 5,
+      "sha256": "d98de692f13f14a5c0b3a436c1e833739cf698146e2b9e43cb929d2e79ef5ef1"
+    },
+    "examples_validation": {
+      "bytes": 9835,
+      "path": "examples/validation.jsonl",
+      "records": 5,
+      "sha256": "fbe0996ad53b5849be6f9ab46681195dae55db1143fe579c756960ef45bce688"
+    }
+  },
+  "schema_version": 1,
+  "source": {
+    "files": [
+      {
+        "bytes": 566426227,
+        "expected_records": 90447,
+        "filename": "hotpot_train_v1.1.json",
+        "mirrors": [
+          "http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_train_v1.1.json"
+        ],
+        "sha256": "26650cf50234ef5fb2e664ed70bbecdfd87815e6bffc257e068efea5cf7cd316",
+        "split": "train",
+        "url": "https://huggingface.co/datasets/waylonli/SEKA-datasets/resolve/91bf3f67fb2044c7e81514e103a962d6ef76c230/hotpotqa/hotpot_train_v1.1.json?download=true"
+      },
+      {
+        "bytes": 46320117,
+        "expected_records": 7405,
+        "filename": "hotpot_dev_distractor_v1.json",
+        "mirrors": [
+          "http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_dev_distractor_v1.json"
+        ],
+        "sha256": "4e9ecb5c8d3b719f624d66b60f8d56bf227f03914f5f0753d6fa1b359d7104ea",
+        "split": "validation",
+        "url": "https://huggingface.co/datasets/RAGLAB/data/resolve/83ec19575bcf252a53a82f68eda4a8921924ca45/eval_datasets/HotPotQA/hotpot_dev_distractor_v1.json?download=true"
+      }
+    ],
+    "repository": "https://github.com/hotpotqa/hotpot",
+    "repository_revision": "3635853403a8735609ee997664e1528f4480762a",
+    "revision": "official-train-v1.1-dev-distractor-v1"
+  },
+  "variant": "distractor"
+}

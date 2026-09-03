@@ -1,0 +1,41 @@
+[
+  {
+    "_id": "fixture-validation-001",
+    "question": "Who designed the building that houses the Northbridge Museum?",
+    "answer": "Lena Ives",
+    "type": "bridge",
+    "level": "medium",
+    "supporting_facts": [["Northbridge Museum", 1], ["Lena Ives", 0]],
+    "context": [
+      ["Northbridge Museum", ["Northbridge Museum opened in 1982.", "It occupies the Harbor Hall."]],
+      ["Lena Ives", ["Lena Ives designed Harbor Hall."]],
+      ["Orin Vale", ["Orin Vale founded the Vale Prize."]]
+    ]
+  },
+  {
+    "_id": "fixture-validation-002",
+    "question": "Does the Vale Prize medal use the same material as Harbor Hall's roof?",
+    "answer": "yes",
+    "type": "comparison",
+    "level": "hard",
+    "supporting_facts": [["Vale Prize", 1], ["Harbor Hall", 0]],
+    "context": [
+      ["Vale Prize", ["The award is given each spring.", "Its medal is made from glass."]],
+      ["Harbor Hall", ["Harbor Hall has a glass roof."]],
+      ["Juniper Tower", ["Juniper Tower was completed in 1964."]]
+    ]
+  },
+  {
+    "_id": "fixture-validation-003",
+    "question": "Which annual event gives the medal made from glass?",
+    "answer": "Vale Prize",
+    "type": "bridge",
+    "level": "easy",
+    "supporting_facts": [["Glass Medal", 0], ["Vale Prize", 0]],
+    "context": [
+      ["Glass Medal", ["The glass medal is awarded at the Vale Prize."]],
+      ["Vale Prize", ["The award is given each spring.", "Its medal is made from glass."]],
+      ["Aster Observatory", ["Aster Observatory is in Northbridge."]]
+    ]
+  }
+]

@@ -9,6 +9,16 @@ from pathlib import Path
 from deep_research_rl import __version__
 from deep_research_rl.config import ConfigError, config_as_json, load_config
 from deep_research_rl.core.smoke import run_synthetic_smoke
+from deep_research_rl.data.hotpotqa import (
+    DataPipelineError,
+    build_hotpotqa,
+    verify_hotpotqa_build,
+)
+from deep_research_rl.data.source import (
+    SourceConfigError,
+    download_source_files,
+    load_source_config,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -41,7 +51,118 @@ def build_parser() -> argparse.ArgumentParser:
         help="destination for the generated JSONL trajectory",
     )
 
+    data_parser = commands.add_parser(
+        "data",
+        help="download, convert, and verify versioned datasets",
+    )
+    data_commands = data_parser.add_subparsers(dest="data_command", title="data commands")
+
+    download_parser = data_commands.add_parser(
+        "download",
+        help="download and verify pinned raw source files",
+    )
+    download_parser.add_argument(
+        "--source-config",
+        type=Path,
+        required=True,
+        help="committed JSON source descriptor",
+    )
+    download_parser.add_argument(
+        "--raw-dir",
+        type=Path,
+        required=True,
+        help="directory for ignored raw source files",
+    )
+
+    prepare_parser = data_commands.add_parser(
+        "prepare",
+        help="convert verified HotpotQA JSON into deterministic artifacts",
+    )
+    prepare_parser.add_argument(
+        "--source-config",
+        type=Path,
+        required=True,
+        help="committed JSON source descriptor",
+    )
+    prepare_parser.add_argument(
+        "--raw-dir",
+        type=Path,
+        required=True,
+        help="directory containing verified raw source files",
+    )
+    prepare_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        required=True,
+        help="directory for ignored converted artifacts and manifest",
+    )
+    prepare_parser.add_argument(
+        "--max-train",
+        type=int,
+        help="positive deterministic train prefix size for a debug build",
+    )
+    prepare_parser.add_argument(
+        "--max-validation",
+        type=int,
+        help="positive deterministic validation prefix size for a debug build",
+    )
+
+    verify_parser = data_commands.add_parser(
+        "verify",
+        help="verify a converted build against its manifest",
+    )
+    verify_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        required=True,
+        help="directory containing converted artifacts and manifest",
+    )
+
     return parser
+
+
+def _run_data_command(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    """Run one dependency-light dataset command."""
+
+    if args.data_command is None:
+        parser.parse_args(["data", "--help"])
+        return 0
+    try:
+        if args.data_command == "download":
+            source_config = load_source_config(args.source_config)
+            paths = download_source_files(source_config, args.raw_dir)
+            print(f"verified {len(paths)} raw source files in {args.raw_dir}")
+            return 0
+        if args.data_command == "prepare":
+            source_config = load_source_config(args.source_config)
+            result = build_hotpotqa(
+                source_config,
+                args.raw_dir,
+                args.output_dir,
+                max_train=args.max_train,
+                max_validation=args.max_validation,
+            )
+            print(
+                f"{result.build_mode} HotpotQA build verified: "
+                f"train={result.train_examples}, "
+                f"validation={result.validation_examples}, "
+                f"corpus={result.corpus_documents}, "
+                f"manifest={result.manifest_path}"
+            )
+            return 0
+        manifest = verify_hotpotqa_build(args.output_dir)
+        counts = manifest["counts"]
+        if not isinstance(counts, dict):
+            raise DataPipelineError("manifest counts must be an object")
+        print(
+            f"HotpotQA build verified: train={counts['train_examples']}, "
+            f"validation={counts['validation_examples']}, "
+            f"corpus={counts['corpus_documents']}"
+        )
+        return 0
+    except (DataPipelineError, OSError, SourceConfigError) as error:
+        parser.error(str(error))
+    return 2
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -62,6 +183,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"output={args.output}"
         )
         return 0
+
+    if args.command == "data":
+        return _run_data_command(parser, args)
 
     if args.command != "config":
         parser.print_help()

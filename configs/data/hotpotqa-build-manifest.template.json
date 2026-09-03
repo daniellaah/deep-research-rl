@@ -1,0 +1,67 @@
+{
+  "build": {
+    "limits": {
+      "train": null,
+      "validation": null
+    },
+    "mode": "full"
+  },
+  "compatibility": {
+    "agent_r1": {
+      "logical_columns": [
+        "data_source",
+        "prompt",
+        "reward_model",
+        "extra_info"
+      ],
+      "repository": "REPOSITORY_URL",
+      "revision": "PINNED_COMMIT"
+    },
+    "local_core_adapter": "HotpotQAExample.to_core_example"
+  },
+  "counts": {
+    "context_document_occurrences": 0,
+    "corpus_documents": 0,
+    "deduplicated_context_occurrences": 0,
+    "supporting_fact_reference_issues": 0,
+    "train_examples": 0,
+    "validation_examples": 0
+  },
+  "dataset": "hotpot_qa",
+  "hash_algorithm": "sha256",
+  "integrity": {
+    "corpus_document_ids_unique": true,
+    "evaluation_labels_excluded_from_prompt": true,
+    "train_validation_ids_disjoint": true
+  },
+  "license": {
+    "name": "LICENSE_NAME",
+    "url": "LICENSE_URL"
+  },
+  "outputs": {
+    "ARTIFACT_NAME": {
+      "bytes": 0,
+      "path": "RELATIVE_PATH",
+      "records": 0,
+      "sha256": "SHA256"
+    }
+  },
+  "schema_version": 1,
+  "source": {
+    "files": [
+      {
+        "bytes": 0,
+        "expected_records": 0,
+        "filename": "SOURCE_FILE",
+        "mirrors": [],
+        "sha256": "SHA256",
+        "split": "train",
+        "url": "SOURCE_URL"
+      }
+    ],
+    "repository": "SOURCE_REPOSITORY",
+    "repository_revision": "PINNED_COMMIT",
+    "revision": "SOURCE_REVISION"
+  },
+  "variant": "distractor"
+}

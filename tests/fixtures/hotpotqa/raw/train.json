@@ -1,0 +1,41 @@
+[
+  {
+    "_id": "fixture-train-001",
+    "question": "Which city contains the observatory where Mira Chen works?",
+    "answer": "Northbridge",
+    "type": "bridge",
+    "level": "hard",
+    "supporting_facts": [["Mira Chen", 0], ["Aster Observatory", 0]],
+    "context": [
+      ["Mira Chen", ["Mira Chen works at Aster Observatory."]],
+      ["Aster Observatory", ["Aster Observatory is in Northbridge."]],
+      ["Northbridge Museum", ["Northbridge Museum opened in 1982."]]
+    ]
+  },
+  {
+    "_id": "fixture-train-002",
+    "question": "What material is the prize named after Orin Vale made from?",
+    "answer": "glass",
+    "type": "bridge",
+    "level": "medium",
+    "supporting_facts": [["Orin Vale", 0], ["Vale Prize", 1]],
+    "context": [
+      ["Orin Vale", ["Orin Vale founded the Vale Prize."]],
+      ["Vale Prize", ["The award is given each spring.", "Its medal is made from glass."]],
+      ["Northbridge Museum", ["Northbridge Museum opened in 1982."]]
+    ]
+  },
+  {
+    "_id": "fixture-train-003",
+    "question": "Were the Juniper Tower and Aster Observatory completed in the same decade?",
+    "answer": "no",
+    "type": "comparison",
+    "level": "hard",
+    "supporting_facts": [["Juniper Tower", 0], ["Aster Observatory", 1]],
+    "context": [
+      ["Juniper Tower", ["Juniper Tower was completed in 1964."]],
+      ["Aster Observatory", ["Aster Observatory is in Northbridge.", "It was completed in 1981."]],
+      ["Vale Prize", ["The award is given each spring.", "Its medal is made from glass."]]
+    ]
+  }
+]

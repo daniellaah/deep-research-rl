@@ -5,10 +5,10 @@ limited search budget. The initial baseline intentionally uses conventional retr
 outcome-only reinforcement learning so that later policy, reward, and credit-assignment
 experiments have a clear comparison point.
 
-The repository provides a dependency-light project foundation and a deterministic CPU vertical
-slice across retrieval, state transitions, trajectories, outcome reward, terminal credit, and
-metrics. Model-backed rollout, benchmark data, production retrieval, and training are added as
-independently testable layers.
+The repository provides a dependency-light project foundation, a deterministic CPU vertical slice
+across retrieval, state transitions, trajectories, outcome reward, terminal credit, and metrics,
+and a reproducible HotpotQA distractor data pipeline. Model-backed rollout, production retrieval,
+and training are added as independently testable layers.
 
 ## Quick start
 
@@ -68,6 +68,14 @@ policy, context construction, reward, credit assignment, and cost independent. T
 provides strict `SEARCH(query)` / `ANSWER(answer)` parsing, append-only context, in-memory BM25,
 a scripted policy, normalized terminal exact match, zero cost, and terminal-only credit using only
 the Python standard library.
+
+## HotpotQA data
+
+The committed source descriptor pins the official HotpotQA train v1.1 and distractor development
+files by URL, byte count, record count, and SHA-256. Dependency-light commands download, convert,
+and verify canonical examples, a deduplicated corpus, Agent-R1 logical rows, and a complete build
+manifest. Debug builds select bounded deterministic prefixes and require no GPU. See
+[`docs/hotpotqa-data.md`](docs/hotpotqa-data.md) for commands and schemas.
 
 ## Local artifact policy
 

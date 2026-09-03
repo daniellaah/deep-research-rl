@@ -1,0 +1,44 @@
+{
+  "compatibility": {
+    "agent_r1": {
+      "repository": "https://github.com/AgentR1/Agent-R1",
+      "revision": "b124aa46534cbf2fb8bc8af11405774984c42ac7"
+    }
+  },
+  "dataset": "hotpot_qa",
+  "license": {
+    "name": "CC BY-SA 4.0",
+    "url": "https://creativecommons.org/licenses/by-sa/4.0/legalcode"
+  },
+  "schema_version": 1,
+  "source": {
+    "repository": "https://github.com/hotpotqa/hotpot",
+    "revision": "3635853403a8735609ee997664e1528f4480762a"
+  },
+  "source_revision": "official-train-v1.1-dev-distractor-v1",
+  "splits": [
+    {
+      "bytes": 566426227,
+      "filename": "hotpot_train_v1.1.json",
+      "mirrors": [
+        "http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_train_v1.1.json"
+      ],
+      "name": "train",
+      "records": 90447,
+      "sha256": "26650cf50234ef5fb2e664ed70bbecdfd87815e6bffc257e068efea5cf7cd316",
+      "url": "https://huggingface.co/datasets/waylonli/SEKA-datasets/resolve/91bf3f67fb2044c7e81514e103a962d6ef76c230/hotpotqa/hotpot_train_v1.1.json?download=true"
+    },
+    {
+      "bytes": 46320117,
+      "filename": "hotpot_dev_distractor_v1.json",
+      "mirrors": [
+        "http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_dev_distractor_v1.json"
+      ],
+      "name": "validation",
+      "records": 7405,
+      "sha256": "4e9ecb5c8d3b719f624d66b60f8d56bf227f03914f5f0753d6fa1b359d7104ea",
+      "url": "https://huggingface.co/datasets/RAGLAB/data/resolve/83ec19575bcf252a53a82f68eda4a8921924ca45/eval_datasets/HotPotQA/hotpot_dev_distractor_v1.json?download=true"
+    }
+  ],
+  "variant": "distractor"
+}

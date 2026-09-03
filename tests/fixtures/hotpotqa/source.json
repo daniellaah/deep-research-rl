@@ -1,0 +1,38 @@
+{
+  "compatibility": {
+    "agent_r1": {
+      "repository": "https://github.com/AgentR1/Agent-R1",
+      "revision": "b124aa46534cbf2fb8bc8af11405774984c42ac7"
+    }
+  },
+  "dataset": "hotpot_qa",
+  "license": {
+    "name": "Synthetic test fixture; not benchmark data",
+    "url": "https://example.invalid/test-fixture"
+  },
+  "schema_version": 1,
+  "source": {
+    "repository": "https://example.invalid/deepresearch-rl-test-fixture",
+    "revision": "fixture-v1"
+  },
+  "source_revision": "synthetic-test-fixture-v1",
+  "splits": [
+    {
+      "bytes": 1543,
+      "filename": "train.json",
+      "name": "train",
+      "records": 3,
+      "sha256": "4f539abd21dd8e5f3f8e1c22c3397bb2dfb9fd614eb815e5eb1c404ed63b45a8",
+      "url": "https://example.invalid/train.json"
+    },
+    {
+      "bytes": 1535,
+      "filename": "validation.json",
+      "name": "validation",
+      "records": 3,
+      "sha256": "e546f4f8d9e2f9140f79b5c68f878bb28fe95953194bc7b103e3c12cb6d6f1d3",
+      "url": "https://example.invalid/validation.json"
+    }
+  ],
+  "variant": "distractor"
+}
