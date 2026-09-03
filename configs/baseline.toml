@@ -1,0 +1,61 @@
+schema_version = 1
+config_kind = "defaults"
+name = "baseline-v0.1"
+
+[dataset]
+name = "hotpot_qa"
+variant = "distractor"
+revision = "UNRESOLVED"
+
+[model]
+family = "Qwen3"
+scale = "4B"
+checkpoint = "UNRESOLVED"
+revision = "UNRESOLVED"
+
+[agent]
+actions = ["SEARCH", "ANSWER"]
+context_policy = "append_only"
+max_policy_searches = 5
+
+[retrieval.local]
+backend = "bm25"
+
+[retrieval.production]
+backend = "faiss_bge"
+framework = "agent-r1"
+revision = "UNRESOLVED"
+
+[reward]
+answer = "normalized_exact_match"
+intermediate = 0.0
+search_cost = 0.0
+token_cost = 0.0
+
+[credit]
+assignment = "terminal_only"
+
+[training]
+algorithm = "grpo"
+framework = "agent-r1_verl"
+framework_revision = "UNRESOLVED"
+
+[evaluation]
+metrics = [
+  "exact_match",
+  "token_f1",
+  "success_rate",
+  "search_calls",
+  "tokens",
+  "evidence_recall_when_labeled",
+]
+
+[resolution]
+required_fields = [
+  "dataset.revision",
+  "model.checkpoint",
+  "model.revision",
+  "retrieval.production.revision",
+  "training.framework_revision",
+  "run.seed",
+]
