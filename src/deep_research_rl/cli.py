@@ -8,7 +8,7 @@ import json
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
 from deep_research_rl import __version__
 from deep_research_rl.agent.qwen import (
@@ -90,6 +90,20 @@ from deep_research_rl.retrieval.index import (
     manifest_backend,
     sha256_file,
 )
+from deep_research_rl.training.data import (
+    TrainingDataError,
+    prepare_training_data,
+    verify_training_data,
+)
+from deep_research_rl.training.runtime import (
+    TrainingPreflightError,
+    TrainingRuntimeError,
+    TrainingRuntimePaths,
+    build_training_launch_plan,
+    load_training_runtime,
+    run_training_launch,
+    run_training_preflight,
+)
 
 
 def _add_evaluation_run_arguments(
@@ -128,6 +142,19 @@ def _add_evaluation_run_arguments(
         default="auto",
     )
     parser.add_argument("--local-files-only", action="store_true")
+
+
+def _add_training_runtime_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--agent-r1-root", type=Path, required=True)
+    parser.add_argument("--verl-root", type=Path, required=True)
+    parser.add_argument("--model-path", type=Path, required=True)
+    parser.add_argument("--training-data-dir", type=Path, required=True)
+    parser.add_argument("--corpus", type=Path, required=True)
+    parser.add_argument("--index-dir", type=Path, required=True)
+    parser.add_argument("--flow-config", type=Path, required=True)
+    parser.add_argument("--n-gpus", type=int, required=True)
+    parser.add_argument("--min-gpu-memory-gib", type=int, required=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -313,6 +340,44 @@ def build_parser() -> argparse.ArgumentParser:
         help="directory containing converted artifacts and manifest",
     )
 
+    training_parser = commands.add_parser(
+        "training",
+        help="prepare, preflight, and launch the pinned Agent-R1/verl GRPO path",
+    )
+    training_commands = training_parser.add_subparsers(
+        dest="training_command",
+        title="training commands",
+    )
+    training_prepare = training_commands.add_parser(
+        "prepare-data",
+        help="materialize verified Agent-R1 Parquet train/validation inputs",
+    )
+    training_prepare.add_argument("--processed-dir", type=Path, required=True)
+    training_prepare.add_argument("--output-dir", type=Path, required=True)
+    training_prepare.add_argument("--max-train", type=int)
+    training_prepare.add_argument("--max-validation", type=int)
+    training_verify = training_commands.add_parser(
+        "verify-data",
+        help="verify Agent-R1 Parquet hashes, rows, columns, and flow routing",
+    )
+    training_verify.add_argument("--training-data-dir", type=Path, required=True)
+    training_preflight = training_commands.add_parser(
+        "preflight",
+        help="verify the pinned container, CUDA, upstream checkouts, and inputs",
+    )
+    _add_training_runtime_arguments(training_preflight)
+    training_preflight.add_argument("--output", type=Path, required=True)
+    training_launch = training_commands.add_parser(
+        "launch",
+        help="launch and verify a one-update sanity or explicit resume phase",
+    )
+    _add_training_runtime_arguments(training_launch)
+    training_launch.add_argument("--phase", choices=("sanity", "resume"), required=True)
+    training_launch.add_argument("--run-dir", type=Path, required=True)
+    training_launch.add_argument("--resume-from", type=Path)
+    training_launch.add_argument("--seed", type=int, default=0)
+    training_launch.add_argument("--dry-run", action="store_true")
+
     retrieval_parser = commands.add_parser(
         "retrieval",
         help="build, verify, query, and diagnose retrieval indexes",
@@ -421,6 +486,95 @@ def _result_record(result: SearchResult) -> dict[str, object]:
         "text": result.text,
         "title": result.title,
     }
+
+
+def _training_paths(args: argparse.Namespace) -> TrainingRuntimePaths:
+    return TrainingRuntimePaths(
+        agent_r1_root=args.agent_r1_root,
+        verl_root=args.verl_root,
+        model_path=args.model_path,
+        training_data_dir=args.training_data_dir,
+        corpus_path=args.corpus,
+        index_dir=args.index_dir,
+        flow_config_path=args.flow_config,
+    )
+
+
+def _run_training_command(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    """Prepare data or run the pinned CUDA preflight/launch workflow."""
+
+    if args.training_command is None:
+        parser.parse_args(["training", "--help"])
+        return 0
+    try:
+        if args.training_command == "prepare-data":
+            result = prepare_training_data(
+                args.processed_dir,
+                args.output_dir,
+                max_train=args.max_train,
+                max_validation=args.max_validation,
+            )
+            print(
+                "Agent-R1 training data prepared and verified: "
+                f"train={result.train_rows}, validation={result.validation_rows}, "
+                f"manifest={result.manifest_path}"
+            )
+            return 0
+        if args.training_command == "verify-data":
+            result = verify_training_data(args.training_data_dir)
+            print(
+                "Agent-R1 training data verified: "
+                f"train={result.train_rows}, validation={result.validation_rows}"
+            )
+            return 0
+
+        config = load_training_runtime(args.config)
+        paths = _training_paths(args)
+        if args.training_command == "preflight":
+            try:
+                report = run_training_preflight(
+                    config,
+                    paths,
+                    n_gpus=args.n_gpus,
+                    min_gpu_memory_gib=args.min_gpu_memory_gib,
+                )
+            except TrainingPreflightError as error:
+                write_json_artifact(args.output, error.report)
+                raise
+            write_json_artifact(args.output, report)
+            print(f"pinned training preflight passed: report={args.output}")
+            return 0
+
+        phase = cast(Literal["sanity", "resume"], args.phase)
+        plan = build_training_launch_plan(
+            config,
+            paths,
+            phase=phase,
+            run_dir=args.run_dir,
+            n_gpus=args.n_gpus,
+            min_gpu_memory_gib=args.min_gpu_memory_gib,
+            seed=args.seed,
+            resume_from=args.resume_from,
+        )
+        repository_root = Path(__file__).resolve().parents[2]
+        manifest_path = run_training_launch(
+            config,
+            plan,
+            repository_root=repository_root,
+            dry_run=args.dry_run,
+        )
+        state = "dry run written" if args.dry_run else "completed and verified"
+        print(f"Agent-R1 {phase} phase {state}: manifest={manifest_path}")
+        return 0
+    except (
+        OSError,
+        RetrievalDependencyError,
+        RetrievalError,
+        TrainingDataError,
+        TrainingRuntimeError,
+    ) as error:
+        parser.error(str(error))
+    return 2
 
 
 def _run_agent_command(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
@@ -802,6 +956,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "evaluation":
         invoked = tuple(argv) if argv is not None else tuple(sys.argv[1:])
         return _run_evaluation_command(parser, args, ("deep-research-rl", *invoked))
+
+    if args.command == "training":
+        return _run_training_command(parser, args)
 
     if args.command == "retrieval":
         return _run_retrieval_command(parser, args)

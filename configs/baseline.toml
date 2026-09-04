@@ -54,7 +54,9 @@ assignment = "terminal_only"
 [training]
 algorithm = "grpo"
 framework = "agent-r1_verl"
-framework_revision = "UNRESOLVED"
+framework_revision = "b124aa46534cbf2fb8bc8af11405774984c42ac7"
+verl_version = "0.7.0"
+verl_revision = "f9c855f7cf04d603c9546bc01776c74806a879c1"
 
 [evaluation]
 protocol = "baseline_evaluation_v1"

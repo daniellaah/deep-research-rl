@@ -54,6 +54,9 @@ def test_baseline_contract_defaults_load() -> None:
     assert config["reward"]["token_cost"] == 0.0
     assert config["credit"]["assignment"] == "terminal_only"
     assert config["training"]["algorithm"] == "grpo"
+    assert config["training"]["framework_revision"] == ("b124aa46534cbf2fb8bc8af11405774984c42ac7")
+    assert config["training"]["verl_version"] == "0.7.0"
+    assert config["training"]["verl_revision"] == ("f9c855f7cf04d603c9546bc01776c74806a879c1")
 
 
 @pytest.mark.parametrize(

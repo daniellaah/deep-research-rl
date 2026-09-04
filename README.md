@@ -9,7 +9,7 @@ The repository provides a dependency-light project foundation, a deterministic C
 across retrieval, state transitions, trajectories, outcome reward, terminal credit, and metrics,
 a reproducible HotpotQA distractor data pipeline, integrity-checked BM25 and FAISS/BGE retrieval
 backends, and a revision-pinned Qwen3 rollout adapter. Distributed training remains a separate,
-independently testable layer.
+independently testable layer with a pinned Agent-R1/verl container path.
 
 ## Quick start
 
@@ -120,6 +120,24 @@ aggregate JSON and CSV, a resolved configuration, and a hash-bearing run manifes
 ordered prefixes and are explicitly ineligible for benchmark reporting. See
 [`docs/evaluation.md`](docs/evaluation.md) for the frozen controls, metric formulas, integrity
 rules, artifact schemas, and comparison-table commands.
+
+## Agent-R1/verl training
+
+The GPU path pins Agent-R1, verl, the CUDA container, and the Qwen checkpoint by immutable
+revision. A project-owned AgentFlow keeps the strict single-action grammar, append-only context,
+five-search budget, terminal normalized exact-match reward, and per-step trajectory evidence. The
+launcher performs a mandatory NVIDIA/CUDA/input preflight, a one-update sanity phase, validation
+before and after the update, checkpoint verification, and an explicit resume phase.
+
+```bash
+docker build --platform linux/amd64 -f docker/training.Dockerfile \
+  -t deep-research-rl:training .
+deep-research-rl training --help
+```
+
+See [`docs/training.md`](docs/training.md) for data preparation, container mounts, exact launch
+commands, artifact checks, and the reward-to-policy-loss mapping. GPU count, minimum device memory,
+and the run time or spend ceiling must be chosen for the target host before execution.
 
 ## Local artifact policy
 

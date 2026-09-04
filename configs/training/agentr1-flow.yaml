@@ -1,0 +1,8 @@
+- name: deep_research_hotpotqa
+  _target_: deep_research_rl.training.agentr1_flow.DeepResearchAgentFlow
+  corpus_path: ${oc.env:DEEP_RESEARCH_RL_CORPUS_PATH}
+  index_dir: ${oc.env:DEEP_RESEARCH_RL_INDEX_DIR}
+  retrieval_device: ${oc.env:DEEP_RESEARCH_RL_RETRIEVAL_DEVICE,cpu}
+  retrieval_top_k: 3
+  max_searches: 5
+  max_steps: 8

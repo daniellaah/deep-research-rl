@@ -1,0 +1,74 @@
+schema_version = 1
+config_kind = "defaults"
+name = "agentr1-verl-grpo-sanity-v1"
+
+[upstream.agent_r1]
+repository = "https://github.com/AgentR1/Agent-R1.git"
+revision = "b124aa46534cbf2fb8bc8af11405774984c42ac7"
+
+[upstream.verl]
+repository = "https://github.com/verl-project/verl.git"
+version = "0.7.0"
+revision = "f9c855f7cf04d603c9546bc01776c74806a879c1"
+
+[container]
+image = "docker.io/verlai/verl@sha256:9576682f85ca36f4ef719efccc5a5deb4d0b6f66f06fc14f43fdfed0749fbf5d"
+platform = "linux/amd64"
+cuda_minimum = "12.8"
+
+[model]
+checkpoint = "Qwen/Qwen3-4B-Instruct-2507"
+revision = "cdbee75f17c01a7cc42f958dc650907174af0554"
+dtype = "bfloat16"
+
+[environment]
+agent_flow = "deep_research_hotpotqa"
+action_format = "strict_search_answer_v1"
+context_policy = "append_only"
+max_searches = 5
+max_steps = 8
+max_prompt_tokens = 8192
+max_response_tokens = 96
+retrieval_backend = "faiss_bge"
+retrieval_top_k = 3
+
+[reward]
+answer = "normalized_exact_match"
+intermediate = 0.0
+search_cost = 0.0
+token_cost = 0.0
+credit = "terminal_only"
+
+[grpo]
+algorithm = "grpo"
+rollouts_per_prompt = 2
+normalize_advantage_by_std = true
+actor_learning_rate = 1e-6
+policy_loss = "vanilla"
+loss_aggregation = "seq-mean-token-mean"
+kl_in_reward = false
+kl_in_loss = false
+
+[sanity]
+train_examples = 1
+validation_examples = 1
+train_batch_size = 1
+validation_batch_size = 1
+agent_workers = 1
+ppo_mini_batch_size = 1
+micro_batch_size_per_gpu = 1
+rollout_gpu_memory_utilization = 0.35
+initial_step = 0
+target_step = 1
+resume_target_step = 2
+seed = 0
+
+[evaluation]
+validation_before_train = true
+validation_after_each_step = true
+decoding = "greedy"
+seed = 0
+
+[checkpoint]
+save_every_steps = 1
+resume_mode = "explicit_path"
